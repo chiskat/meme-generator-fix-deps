@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "meme-generator-fix-deps"
-version = "0.0.1"
+version = "0.1.14"
 description = "Python package for making fun pictures"
 authors = ["chiskat <1@paperplane.cc>"]
 license = "MIT"
