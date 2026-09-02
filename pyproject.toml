@@ -7,6 +7,7 @@ license = "MIT"
 readme = "README.md"
 homepage = "https://git.paperplane.cc/chiskat/meme-generator-pillow11"
 repository = "https://git.paperplane.cc/chiskat/meme-generator-pillow11"
+packages = [{ include = "meme_generator" }]
 exclude = [
     "meme_generator/memes/**/*.jpg",
     "meme_generator/memes/**/*.png",
