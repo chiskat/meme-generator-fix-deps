@@ -176,8 +176,18 @@ if WINDOWS:
 P = ParamSpec("P")
 
 APP_NAME = "meme_generator"
+CONFIG_DIR_ENV = "MEME_GENERATOR_CONFIG_DIR"
+
+
+def _get_base_config_dir() -> Path:
+    config_dir = os.getenv(CONFIG_DIR_ENV)
+    if config_dir:
+        return Path(config_dir).expanduser().resolve()
+    return user_config_dir(APP_NAME).resolve()
+
+
 BASE_CACHE_DIR = user_cache_dir(APP_NAME).resolve()
-BASE_CONFIG_DIR = user_config_dir(APP_NAME).resolve()
+BASE_CONFIG_DIR = _get_base_config_dir()
 BASE_DATA_DIR = user_data_dir(APP_NAME).resolve()
 
 

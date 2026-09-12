@@ -1,12 +1,12 @@
 [tool.poetry]
 name = "meme-generator-fix-deps"
-version = "0.1.14"
-description = "Python package for making fun pictures"
+version = "0.1.15"
+description = "An upgraded meme-generator with updated Pillow dependency"
 authors = ["chiskat <1@paperplane.cc>"]
 license = "MIT"
 readme = "README.md"
-homepage = "https://git.paperplane.cc/chiskat/meme-generator-fix-deps"
-repository = "https://git.paperplane.cc/chiskat/meme-generator-fix-deps"
+homepage = "https://github.com/chiskat/meme-generator-fix-deps"
+repository = "https://github.com/chiskat/meme-generator-fix-deps"
 packages = [{ include = "meme_generator" }]
 exclude = [
     "meme_generator/memes/**/*.jpg",
