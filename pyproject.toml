@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "meme-generator-fix-deps"
-version = "0.1.17"
+version = "0.1.18"
 description = "An upgraded meme-generator with updated Pillow dependency"
 authors = ["chiskat <1@paperplane.cc>"]
 license = "MIT"
