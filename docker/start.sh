@@ -44,6 +44,9 @@ fi
 export MEME_GENERATOR_CONFIG_DIR="$config_dir"
 mkdir -p "$config_dir"
 
-envsubst < /app/config.toml.template > "$config_dir/config.toml"
+config_file="$config_dir/config.toml"
+if [ ! -f "$config_file" ]; then
+    envsubst < /app/config.toml.template > "$config_file"
+fi
 
 exec python -m meme_generator.app --config-dir "$config_dir"
