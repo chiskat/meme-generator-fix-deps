@@ -1,13 +1,16 @@
 [tool.poetry]
 name = "meme-generator-fix-deps"
-version = "0.1.16"
+version = "0.1.17"
 description = "An upgraded meme-generator with updated Pillow dependency"
 authors = ["chiskat <1@paperplane.cc>"]
 license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/chiskat/meme-generator-fix-deps"
 repository = "https://github.com/chiskat/meme-generator-fix-deps"
-packages = [{ include = "meme_generator" }]
+packages = [
+    { include = "meme_generator" },
+    { include = "meme_generator_cli.py" },
+]
 exclude = [
     "meme_generator/memes/**/*.jpg",
     "meme_generator/memes/**/*.png",
@@ -32,11 +35,12 @@ typing-extensions = ">=4.4.0,<5.0.0"
 arclet-alconna = "^1.8.23,!=1.8.27"
 arclet-alconna-tools = "^0.7.9"
 skia-python = ">=138.0"
+pycairo = ">=1.26.0"
 
 [tool.poetry.group.dev.dependencies]
 
 [tool.poetry.scripts]
-meme = "meme_generator.cli:main"
+meme = "meme_generator_cli:main"
 
 [tool.pyright]
 pythonVersion = "3.9"

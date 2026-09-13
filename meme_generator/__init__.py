@@ -1,4 +1,40 @@
+import argparse
+import os
+import sys
 from pathlib import Path
+
+CONFIG_DIR_ENV = "MEME_GENERATOR_CONFIG_DIR"
+
+
+def _is_module_invocation(module_name: str) -> bool:
+    orig_argv = getattr(sys, "orig_argv", [])
+    try:
+        option_index = orig_argv.index("-m")
+    except ValueError:
+        return False
+    return (
+        option_index + 1 < len(orig_argv)
+        and orig_argv[option_index + 1] == module_name
+    )
+
+
+def _apply_config_dir_option() -> None:
+    if not _is_module_invocation("meme_generator.app"):
+        return
+
+    parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
+    parser.add_argument("--config-dir", dest="config_dir")
+    args, _ = parser.parse_known_args(sys.argv[1:])
+
+    if args.config_dir is None:
+        return
+    if not args.config_dir:
+        parser.error("--config-dir must not be empty")
+
+    os.environ[CONFIG_DIR_ENV] = str(Path(args.config_dir).expanduser())
+
+
+_apply_config_dir_option()
 
 from meme_generator.config import meme_config as config
 from meme_generator.manager import add_meme as add_meme

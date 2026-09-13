@@ -39,6 +39,9 @@ RUN apt-get update \
     libgl1-mesa-dri \
     libegl1 \
     gettext \
+    build-essential \
+    pkg-config \
+    libcairo2-dev \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --chown=root:root ./resources/fonts/ /usr/local/share/fonts/meme-generator/
@@ -56,4 +59,5 @@ COPY ./docker/start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 RUN python -m meme_generator.cli
 
-CMD ["/app/start.sh"]
+ENTRYPOINT ["/app/start.sh"]
+CMD []

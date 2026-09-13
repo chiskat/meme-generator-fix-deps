@@ -45,13 +45,27 @@ def construct_parser() -> Alconna:
 
     parser = Alconna(
         "meme",
+        Option(
+            "--config-dir",
+            Args["config_dir", str],
+            help_text="指定 config.toml 所在目录",
+        ),
         Subcommand("list", alias=["ls"], help_text="查看表情列表"),
         Subcommand(
             "info", Args["key#表情名", str], alias=["show"], help_text="查看表情详情"
         ),
         Subcommand("preview", Args["key#表情名", str], help_text="生成表情预览"),
         Subcommand("generate", *sub_commands, alias=["make"], help_text="制作表情"),
-        Subcommand("run", alias=["start"], help_text="启动 web server"),
+        Subcommand(
+            "run",
+            Option(
+                "--config-dir",
+                Args["config_dir", str],
+                help_text="指定 config.toml 所在目录",
+            ),
+            alias=["start"],
+            help_text="启动 web server",
+        ),
         Subcommand(
             "download",
             Option("--url", Args["url", str], help_text="指定资源链接"),
