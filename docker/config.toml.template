@@ -15,5 +15,23 @@ baidu_trans_apikey = "$BAIDU_TRANS_APIKEY"
 host = "0.0.0.0"
 port = 2233
 
+[storage.s3]
+enabled = $S3_ENABLED
+endpoint_url = "$S3_ENDPOINT_URL"
+region = "$S3_REGION"
+bucket = "$S3_BUCKET"
+access_key_id = "$S3_ACCESS_KEY_ID"
+secret_access_key = "$S3_SECRET_ACCESS_KEY"
+session_token = "$S3_SESSION_TOKEN"
+result_prefix = "$S3_RESULT_PREFIX"
+preview_prefix = "$S3_PREVIEW_PREFIX"
+public_base_url = "$S3_PUBLIC_BASE_URL"
+path_style = $S3_PATH_STYLE
+
+[storage.redis]
+enabled = $REDIS_ENABLED
+url = "$REDIS_URL"
+key_prefix = "$REDIS_KEY_PREFIX"
+
 [log]
 log_level = "$LOG_LEVEL"

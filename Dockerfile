@@ -27,6 +27,20 @@ ENV TZ=Asia/Shanghai \
   GIF_MAX_FRAMES=100 \
   BAIDU_TRANS_APPID="" \
   BAIDU_TRANS_APIKEY="" \
+  S3_ENABLED=false \
+  S3_ENDPOINT_URL="" \
+  S3_REGION="" \
+  S3_BUCKET="" \
+  S3_ACCESS_KEY_ID="" \
+  S3_SECRET_ACCESS_KEY="" \
+  S3_SESSION_TOKEN="" \
+  S3_RESULT_PREFIX="meme-generator/artifact" \
+  S3_PREVIEW_PREFIX="meme-generator/preview" \
+  S3_PUBLIC_BASE_URL="" \
+  S3_PATH_STYLE=true \
+  REDIS_ENABLED=false \
+  REDIS_URL="redis://localhost:6379/0" \
+  REDIS_KEY_PREFIX="meme-generator:preview" \
   LOG_LEVEL="INFO"
 
 COPY --from=tmp /tmp/requirements.txt /app/requirements.txt
@@ -57,7 +71,7 @@ COPY ./meme_generator /app/meme_generator
 COPY ./docker/config.toml.template /app/config.toml.template
 COPY ./docker/start.sh /app/start.sh
 RUN chmod +x /app/start.sh
-RUN python -m meme_generator.cli
+RUN python -c "import meme_generator.cli"
 
 ENTRYPOINT ["/app/start.sh"]
 CMD []

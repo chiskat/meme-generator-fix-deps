@@ -1,26 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-config_dir="${MEME_GENERATOR_CONFIG_DIR:-$HOME/.config/meme_generator}"
+if [ -n "${MEME_GENERATOR_CONFIG_FILE:-}" ]; then
+  config_file="$MEME_GENERATOR_CONFIG_FILE"
+elif [ -n "${MEME_GENERATOR_CONFIG_DIR:-}" ]; then
+  # Backward compatibility with the deprecated directory-style configuration
+  config_file="$MEME_GENERATOR_CONFIG_DIR/config.toml"
+else
+  config_file="$HOME/.config/meme_generator/config.toml"
+fi
 
 # Allow the container to be started as:
-#   docker run ... image --config-dir /path/to/config
+#   docker run ... image --config-file /path/to/config.toml
 # Other commands are passed through so `docker run ... image bash` still works.
 if [ "$#" -gt 0 ]; then
   case "$1" in
-    --config-dir|--config-dir=*)
+    --config-file|--config-file=*)
       while [ "$#" -gt 0 ]; do
         case "$1" in
-          --config-dir)
+          --config-file)
             if [ "$#" -lt 2 ]; then
-              echo "--config-dir requires a path" >&2
+              echo "--config-file requires a path" >&2
               exit 1
             fi
-            config_dir="$2"
+            config_file="$2"
             shift 2
             ;;
-          --config-dir=*)
-            config_dir="${1#--config-dir=}"
+          --config-file=*)
+            config_file="${1#--config-file=}"
             shift
             ;;
           *)
@@ -36,17 +43,16 @@ if [ "$#" -gt 0 ]; then
   esac
 fi
 
-if [ -z "$config_dir" ]; then
-  echo "Config directory must not be empty" >&2
+if [ -z "$config_file" ]; then
+  echo "Config file path must not be empty" >&2
   exit 1
 fi
 
-export MEME_GENERATOR_CONFIG_DIR="$config_dir"
-mkdir -p "$config_dir"
+export MEME_GENERATOR_CONFIG_FILE="$config_file"
+mkdir -p "$(dirname "$config_file")"
 
-config_file="$config_dir/config.toml"
 if [ ! -f "$config_file" ]; then
     envsubst < /app/config.toml.template > "$config_file"
 fi
 
-exec python -m meme_generator.app --config-dir "$config_dir"
+exec python -m meme_generator.app --config-file "$config_file"

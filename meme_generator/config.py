@@ -42,6 +42,31 @@ class ServerConfig(BaseModel):
     port: int = 2233
 
 
+class S3StorageConfig(BaseModel):
+    enabled: bool = False
+    endpoint_url: Optional[str] = None
+    region: Optional[str] = None
+    bucket: str = ""
+    access_key_id: str = ""
+    secret_access_key: str = ""
+    session_token: Optional[str] = None
+    result_prefix: str = "meme-generator/artifact"
+    preview_prefix: str = "meme-generator/preview"
+    public_base_url: Optional[str] = None
+    path_style: bool = True
+
+
+class RedisConfig(BaseModel):
+    enabled: bool = False
+    url: str = "redis://localhost:6379/0"
+    key_prefix: str = "meme-generator:preview"
+
+
+class StorageConfig(BaseModel):
+    s3: S3StorageConfig = S3StorageConfig()
+    redis: RedisConfig = RedisConfig()
+
+
 class LogConfig(BaseModel):
     log_level: Union[int, str] = "INFO"
 
@@ -52,6 +77,7 @@ class Config(BaseModel):
     gif: GifConfig = GifConfig()
     translate: TranslatorConfig = TranslatorConfig()
     server: ServerConfig = ServerConfig()
+    storage: StorageConfig = StorageConfig()
     log: LogConfig = LogConfig()
 
     @classmethod
@@ -65,6 +91,8 @@ class Config(BaseModel):
 
 if not config_file_path.exists():
     meme_config = Config()
-    config_file_path.write_text("", encoding="utf8")
+    config_file_path.write_text(
+        "[meme]\nload_builtin_memes = true\n", encoding="utf8"
+    )
 else:
     meme_config = Config.load()

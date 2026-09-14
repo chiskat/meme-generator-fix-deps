@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "meme-generator-fix-deps"
-version = "0.1.18"
-description = "An upgraded meme-generator with updated Pillow dependency"
+name = "meme-generator-next"
+version = "0.2.0"
+description = "The next-generation Python version of meme-generator"
 authors = ["chiskat <1@paperplane.cc>"]
 license = "MIT"
 readme = "README.md"
-homepage = "https://github.com/chiskat/meme-generator-fix-deps"
-repository = "https://github.com/chiskat/meme-generator-fix-deps"
+homepage = "https://github.com/chiskat/meme-generator-next"
+repository = "https://github.com/chiskat/meme-generator-next"
 packages = [
     { include = "meme_generator" },
     { include = "meme_generator_cli.py" },
@@ -33,11 +33,11 @@ dateparser = "^1.2.0"
 qrcode = "^8.0"
 typing-extensions = ">=4.4.0,<5.0.0"
 arclet-alconna = "^1.8.23,!=1.8.27"
+boto3 = "^1.35.0"
+redis = "^5.0.0"
 arclet-alconna-tools = "^0.7.9"
 skia-python = ">=138.0"
 pycairo = ">=1.26.0"
-
-[tool.poetry.group.dev.dependencies]
 
 [tool.poetry.scripts]
 meme = "meme_generator_cli:main"

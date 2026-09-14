@@ -5,6 +5,7 @@ from typing import Any, Literal, Optional
 import filetype
 from fastapi import Depends, FastAPI, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, ValidationError
+from redis.exceptions import RedisError
 
 from meme_generator.compat import model_dump, model_json_schema, type_validate_python
 from meme_generator.config import meme_config
@@ -12,10 +13,18 @@ from meme_generator.exception import (
     ArgModelMismatch,
     MemeGeneratorException,
     NoSuchMeme,
+    RedisCacheError,
+    S3StorageError,
 )
 from meme_generator.log import LOGGING_CONFIG, setup_logger
 from meme_generator.manager import get_meme, get_meme_keys, get_memes
 from meme_generator.meme import CommandShortcut, Meme, MemeArgsModel, ParserOption
+from meme_generator.redis_cache import (
+    cache_preview_url,
+    create_redis_client,
+    get_cached_preview_url,
+)
+from meme_generator.storage import upload_to_s3
 from meme_generator.utils import MemeProperties, render_meme_list, run_sync
 from meme_generator.version import __version__
 
@@ -37,6 +46,17 @@ class MemeParamsResponse(BaseModel):
     args_type: Optional[MemeArgsResponse] = None
 
 
+class MemeUrlResponse(BaseModel):
+    url: str
+    meme_key: str
+    object_key: str
+
+
+class MemePreviewUrlResponse(BaseModel):
+    url: str
+    meme_key: str
+
+
 class MemeInfoResponse(BaseModel):
     key: str
     params_type: MemeParamsResponse
@@ -45,6 +65,19 @@ class MemeInfoResponse(BaseModel):
     tags: set[str]
     date_created: datetime
     date_modified: datetime
+
+
+async def generate_meme(
+    meme: Meme, images: list[bytes], texts: list[str], args: Any
+) -> tuple[bytes, str]:
+    try:
+        result = await run_sync(meme)(images=images, texts=texts, args=model_dump(args))
+    except MemeGeneratorException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+    content = result.getvalue()
+    media_type = str(filetype.guess_mime(content)) or "text/plain"
+    return content, media_type
 
 
 def register_router(meme: Meme):
@@ -79,16 +112,97 @@ def register_router(meme: Meme):
 
         assert isinstance(args, args_model)
 
+        content, media_type = await generate_meme(meme, imgs, texts, args)
+
+        return Response(content=content, media_type=media_type)
+
+    @app.post(f"/memes/{meme.key}/url/")
+    async def _(
+        images: list[UploadFile] = [],
+        texts: list[str] = meme.params_type.default_texts,
+        args: args_model = Depends(args_checker),  # type: ignore
+    ):
+        imgs: list[bytes] = []
+        for image in images:
+            imgs.append(await image.read())
+
+        texts = [text for text in texts if text]
+
+        assert isinstance(args, args_model)
+
+        content, media_type = await generate_meme(meme, imgs, texts, args)
+
         try:
-            result = await run_sync(meme)(
-                images=imgs, texts=texts, args=model_dump(args)
+            upload_result = await run_sync(upload_to_s3)(
+                content=content,
+                media_type=media_type,
+                meme_key=meme.key,
+                config=meme_config.storage.s3,
+                upload_kind="result",
             )
-        except MemeGeneratorException as e:
+        except S3StorageError as e:
             raise HTTPException(status_code=e.status_code, detail=e.message)
 
-        content = result.getvalue()
-        media_type = str(filetype.guess_mime(content)) or "text/plain"
-        return Response(content=content, media_type=media_type)
+        return MemeUrlResponse(
+            url=upload_result.url,
+            meme_key=meme.key,
+            object_key=upload_result.object_key,
+        )
+
+    @app.get(f"/memes/{meme.key}/preview/url/")
+    async def _():
+        redis_config = meme_config.storage.redis
+        if not redis_config.enabled:
+            error = RedisCacheError(
+                "Redis 缓存未启用，请在 config.toml 中配置 storage.redis"
+            )
+            raise HTTPException(status_code=error.status_code, detail=error.message)
+
+        try:
+            redis_client = create_redis_client(redis_config)
+        except RedisCacheError as e:
+            raise HTTPException(status_code=e.status_code, detail=e.message)
+
+        try:
+            cached_url = await get_cached_preview_url(
+                redis_client, redis_config, meme.key
+            )
+            if cached_url:
+                return MemePreviewUrlResponse(url=cached_url, meme_key=meme.key)
+
+            try:
+                result = await run_sync(meme.generate_preview)()
+            except MemeGeneratorException as e:
+                raise HTTPException(status_code=e.status_code, detail=e.message)
+
+            content = result.getvalue()
+            media_type = str(filetype.guess_mime(content)) or "text/plain"
+
+            try:
+                upload_result = await run_sync(upload_to_s3)(
+                    content=content,
+                    media_type=media_type,
+                    meme_key=meme.key,
+                    config=meme_config.storage.s3,
+                    upload_kind="preview",
+                )
+            except S3StorageError as e:
+                raise HTTPException(status_code=e.status_code, detail=e.message)
+
+            try:
+                await cache_preview_url(
+                    redis_client, redis_config, meme.key, upload_result.url
+                )
+            except RedisError as e:
+                error = RedisCacheError(f"Redis 缓存写入失败：{e}")
+                raise HTTPException(status_code=error.status_code, detail=error.message)
+
+            return MemePreviewUrlResponse(url=upload_result.url, meme_key=meme.key)
+        except RedisError as e:
+            error = RedisCacheError(f"Redis 缓存读取失败：{e}")
+            raise HTTPException(status_code=error.status_code, detail=error.message)
+        finally:
+            await redis_client.aclose()
 
 
 class MemeKeyWithProperties(BaseModel):

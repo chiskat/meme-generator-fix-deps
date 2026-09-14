@@ -102,3 +102,19 @@ class ArgModelMismatch(ArgMismatch):
 
 class MemeFeedback(MemeGeneratorException):
     status_code: int = 560
+
+
+class S3StorageError(MemeGeneratorException):
+    status_code: int = 570
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
+
+
+class RedisCacheError(MemeGeneratorException):
+    status_code: int = 571
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)

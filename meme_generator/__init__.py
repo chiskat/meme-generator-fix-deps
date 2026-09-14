@@ -3,7 +3,7 @@ import os
 import sys
 from pathlib import Path
 
-CONFIG_DIR_ENV = "MEME_GENERATOR_CONFIG_DIR"
+CONFIG_FILE_ENV = "MEME_GENERATOR_CONFIG_FILE"
 
 
 def _is_module_invocation(module_name: str) -> bool:
@@ -13,28 +13,28 @@ def _is_module_invocation(module_name: str) -> bool:
     except ValueError:
         return False
     return (
-        option_index + 1 < len(orig_argv)
-        and orig_argv[option_index + 1] == module_name
+        option_index + 1 < len(orig_argv) and orig_argv[option_index + 1] == module_name
     )
 
 
-def _apply_config_dir_option() -> None:
+def _apply_config_file_option() -> None:
     if not _is_module_invocation("meme_generator.app"):
         return
 
     parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
-    parser.add_argument("--config-dir", dest="config_dir")
-    args, _ = parser.parse_known_args(sys.argv[1:])
+    parser.add_argument("--config-file", dest="config_file")
+    args, remaining = parser.parse_known_args(sys.argv[1:])
 
-    if args.config_dir is None:
+    if args.config_file is None:
         return
-    if not args.config_dir:
-        parser.error("--config-dir must not be empty")
+    if not args.config_file:
+        parser.error("--config-file must not be empty")
 
-    os.environ[CONFIG_DIR_ENV] = str(Path(args.config_dir).expanduser())
+    os.environ[CONFIG_FILE_ENV] = str(Path(args.config_file).expanduser())
+    sys.argv[:] = [sys.argv[0], *remaining]
 
 
-_apply_config_dir_option()
+_apply_config_file_option()
 
 from meme_generator.config import meme_config as config
 from meme_generator.manager import add_meme as add_meme

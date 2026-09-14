@@ -46,9 +46,9 @@ def construct_parser() -> Alconna:
     parser = Alconna(
         "meme",
         Option(
-            "--config-dir",
-            Args["config_dir", str],
-            help_text="指定 config.toml 所在目录",
+            "--config-file",
+            Args["config_file", str],
+            help_text="指定 config.toml 文件路径",
         ),
         Subcommand("list", alias=["ls"], help_text="查看表情列表"),
         Subcommand(
@@ -59,9 +59,9 @@ def construct_parser() -> Alconna:
         Subcommand(
             "run",
             Option(
-                "--config-dir",
-                Args["config_dir", str],
-                help_text="指定 config.toml 所在目录",
+                "--config-file",
+                Args["config_file", str],
+                help_text="指定 config.toml 文件路径",
             ),
             alias=["start"],
             help_text="启动 web server",
@@ -236,7 +236,3 @@ def main():
                 meme_config.resource.resource_url = url
             loop = asyncio.new_event_loop()
             loop.run_until_complete(check_resources())
-
-
-if __name__ == "__main__":
-    main()

@@ -26,7 +26,7 @@ SOFTWARE.
 import os
 import sys
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Callable, Literal, Optional
 
 from typing_extensions import ParamSpec
 
@@ -176,10 +176,24 @@ if WINDOWS:
 P = ParamSpec("P")
 
 APP_NAME = "meme_generator"
+CONFIG_FILE_ENV = "MEME_GENERATOR_CONFIG_FILE"
+# Deprecated: directory containing config.toml, kept for compatibility
 CONFIG_DIR_ENV = "MEME_GENERATOR_CONFIG_DIR"
 
 
+def _get_config_file_override() -> Optional[Path]:
+    config_file = os.getenv(CONFIG_FILE_ENV)
+    if config_file:
+        return Path(config_file).expanduser().resolve()
+    return None
+
+
+CONFIG_FILE_OVERRIDE = _get_config_file_override()
+
+
 def _get_base_config_dir() -> Path:
+    if CONFIG_FILE_OVERRIDE is not None:
+        return CONFIG_FILE_OVERRIDE.parent
     config_dir = os.getenv(CONFIG_DIR_ENV)
     if config_dir:
         return Path(config_dir).expanduser().resolve()
@@ -222,6 +236,9 @@ def get_config_dir() -> Path:
 
 
 def get_config_file(filename: str) -> Path:
+    if CONFIG_FILE_OVERRIDE is not None:
+        _ensure_dir(CONFIG_FILE_OVERRIDE.parent)
+        return CONFIG_FILE_OVERRIDE
     return get_config_dir() / filename
 
 
