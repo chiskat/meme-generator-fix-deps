@@ -23,6 +23,7 @@ from meme_generator.redis_cache import (
     cache_preview_url,
     create_redis_client,
     get_cached_preview_url,
+    get_cached_preview_urls,
 )
 from meme_generator.storage import upload_to_s3
 from meme_generator.utils import MemeProperties, render_meme_list, run_sync
@@ -78,6 +79,29 @@ async def generate_meme(
     content = result.getvalue()
     media_type = str(filetype.guess_mime(content)) or "text/plain"
     return content, media_type
+
+
+async def generate_and_upload_preview(meme: Meme) -> str:
+    try:
+        result = await run_sync(meme.generate_preview)()
+    except MemeGeneratorException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+    content = result.getvalue()
+    media_type = str(filetype.guess_mime(content)) or "text/plain"
+
+    try:
+        upload_result = await run_sync(upload_to_s3)(
+            content=content,
+            media_type=media_type,
+            meme_key=meme.key,
+            config=meme_config.storage.s3,
+            upload_kind="preview",
+        )
+    except S3StorageError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+    return upload_result.url
 
 
 def register_router(meme: Meme):
@@ -170,34 +194,15 @@ def register_router(meme: Meme):
             if cached_url:
                 return MemePreviewUrlResponse(url=cached_url, meme_key=meme.key)
 
-            try:
-                result = await run_sync(meme.generate_preview)()
-            except MemeGeneratorException as e:
-                raise HTTPException(status_code=e.status_code, detail=e.message)
-
-            content = result.getvalue()
-            media_type = str(filetype.guess_mime(content)) or "text/plain"
+            url = await generate_and_upload_preview(meme)
 
             try:
-                upload_result = await run_sync(upload_to_s3)(
-                    content=content,
-                    media_type=media_type,
-                    meme_key=meme.key,
-                    config=meme_config.storage.s3,
-                    upload_kind="preview",
-                )
-            except S3StorageError as e:
-                raise HTTPException(status_code=e.status_code, detail=e.message)
-
-            try:
-                await cache_preview_url(
-                    redis_client, redis_config, meme.key, upload_result.url
-                )
+                await cache_preview_url(redis_client, redis_config, meme.key, url)
             except RedisError as e:
                 error = RedisCacheError(f"Redis 缓存写入失败：{e}")
                 raise HTTPException(status_code=error.status_code, detail=error.message)
 
-            return MemePreviewUrlResponse(url=upload_result.url, meme_key=meme.key)
+            return MemePreviewUrlResponse(url=url, meme_key=meme.key)
         except RedisError as e:
             error = RedisCacheError(f"Redis 缓存读取失败：{e}")
             raise HTTPException(status_code=error.status_code, detail=error.message)
@@ -253,6 +258,57 @@ def register_routers():
     @app.get("/memes/keys")
     def _():
         return get_meme_keys()
+
+    @app.get("/memes/preview/urls/")
+    async def _():
+        redis_config = meme_config.storage.redis
+        if not redis_config.enabled:
+            error = RedisCacheError(
+                "Redis 缓存未启用，请在 config.toml 中配置 storage.redis"
+            )
+            raise HTTPException(status_code=error.status_code, detail=error.message)
+
+        try:
+            redis_client = create_redis_client(redis_config)
+        except RedisCacheError as e:
+            raise HTTPException(status_code=e.status_code, detail=e.message)
+
+        memes = sorted(get_memes(), key=lambda meme: meme.key)
+        try:
+            cached_urls = await get_cached_preview_urls(
+                redis_client, redis_config, [meme.key for meme in memes]
+            )
+            responses: list[MemePreviewUrlResponse] = []
+
+            for meme in memes:
+                url = cached_urls.get(meme.key)
+                if not url:
+                    try:
+                        url = await generate_and_upload_preview(meme)
+                    except HTTPException:
+                        # A single template may fail to generate its preview,
+                        # for example when it needs an external translator that
+                        # is not configured. Skip it instead of failing the whole
+                        # batch response.
+                        continue
+                    try:
+                        await cache_preview_url(
+                            redis_client, redis_config, meme.key, url
+                        )
+                    except RedisError as e:
+                        error = RedisCacheError(f"Redis 缓存写入失败：{e}")
+                        raise HTTPException(
+                            status_code=error.status_code, detail=error.message
+                        )
+
+                responses.append(MemePreviewUrlResponse(url=url, meme_key=meme.key))
+
+            return responses
+        except RedisError as e:
+            error = RedisCacheError(f"Redis 缓存读取失败：{e}")
+            raise HTTPException(status_code=error.status_code, detail=error.message)
+        finally:
+            await redis_client.aclose()
 
     @app.get("/memes/{key}/info")
     def _(key: str):

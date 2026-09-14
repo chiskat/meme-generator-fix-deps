@@ -106,6 +106,23 @@ services:
 }
 ```
 
+也可以调用 `GET /memes/preview/urls/`，一次返回所有可用表情的预览 URL：
+
+```json
+[
+  {
+    "url": "https://cdn.example.com/meme-generator/preview/petpet/xxx.gif",
+    "meme_key": "petpet"
+  },
+  {
+    "url": "https://cdn.example.com/meme-generator/preview/capoo/xxx.gif",
+    "meme_key": "capoo"
+  }
+]
+```
+
+该端点会批量读取 Redis 缓存；未缓存的表情会逐个生成预览图并上传 S3，首次调用可能需要较长时间。
+
 Redis 配置示例：
 
 ```toml

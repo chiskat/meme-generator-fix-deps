@@ -29,6 +29,25 @@ async def get_cached_preview_url(
     return value.decode("utf-8") if isinstance(value, bytes) else str(value)
 
 
+async def get_cached_preview_urls(
+    client: Any, config: RedisConfig, meme_keys: list[str]
+) -> dict[str, str]:
+    if not meme_keys:
+        return {}
+
+    cache_keys = [get_preview_cache_key(config, meme_key) for meme_key in meme_keys]
+    values = await client.mget(cache_keys)
+
+    cached_urls: dict[str, str] = {}
+    for meme_key, value in zip(meme_keys, values):
+        if value is None:
+            continue
+        cached_urls[meme_key] = (
+            value.decode("utf-8") if isinstance(value, bytes) else str(value)
+        )
+    return cached_urls
+
+
 async def cache_preview_url(
     client: Any, config: RedisConfig, meme_key: str, url: str
 ) -> None:
