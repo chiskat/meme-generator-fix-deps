@@ -16,7 +16,7 @@ from meme_generator.exception import (
     RedisCacheError,
     S3StorageError,
 )
-from meme_generator.log import LOGGING_CONFIG, setup_logger
+from meme_generator.log import LOGGING_CONFIG, logger, setup_logger
 from meme_generator.manager import get_meme, get_meme_keys, get_memes
 from meme_generator.meme import CommandShortcut, Meme, MemeArgsModel, ParserOption
 from meme_generator.redis_cache import (
@@ -285,11 +285,23 @@ def register_routers():
                 if not url:
                     try:
                         url = await generate_and_upload_preview(meme)
-                    except HTTPException:
+                    except HTTPException as e:
                         # A single template may fail to generate its preview,
                         # for example when it needs an external translator that
                         # is not configured. Skip it instead of failing the whole
                         # batch response.
+                        logger.warning(
+                            f"Failed to generate preview for meme {meme.key}: "
+                            f"{e.detail}"
+                        )
+                        continue
+                    except Exception:
+                        # Third-party meme templates may contain implementation
+                        # errors. Do not let one broken template break the whole
+                        # batch preview response.
+                        logger.exception(
+                            f"Failed to generate preview for meme {meme.key}"
+                        )
                         continue
                     try:
                         await cache_preview_url(
