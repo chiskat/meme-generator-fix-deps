@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "meme-generator-next"
-version = "0.2.2"
+version = "0.2.3"
 description = "The next-generation Python version of meme-generator"
 authors = ["chiskat <1@paperplane.cc>"]
 license = "MIT"
