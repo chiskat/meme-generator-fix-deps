@@ -97,26 +97,61 @@ services:
 
 ## Redis 预览缓存
 
-启用 S3 和 Redis 后，每个表情都会新增 `GET /memes/{key}/preview/url/` 端点。第一次访问时会生成预览图并上传到 S3，然后将返回的公开 URL 写入 Redis；后续访问会直接返回缓存中的 URL：
+启用 S3 和 Redis 后，每个表情都会新增 `GET /memes/{key}/preview/url/` 端点。第一次访问时会生成预览图并上传到 S3，然后将返回的公开 URL 写入 Redis；后续访问会直接返回缓存中的 URL。响应中的 `info` 字段与 `GET /memes/{key}/info` 完全一致：
 
 ```json
 {
   "url": "https://cdn.example.com/meme-generator/preview/petpet/xxx.gif",
-  "meme_key": "petpet"
+  "meme_key": "petpet",
+  "info": {
+    "key": "petpet",
+    "params_type": {
+      "min_images": 1,
+      "max_images": 1,
+      "min_texts": 0,
+      "max_texts": 1,
+      "default_texts": [],
+      "args_type": null
+    },
+    "keywords": ["petpet"],
+    "shortcuts": [],
+    "tags": [],
+    "date_created": "2024-01-01T00:00:00",
+    "date_modified": "2024-01-01T00:00:00"
+  }
 }
 ```
 
-也可以调用 `GET /memes/preview/urls/`，一次返回所有可用表情的预览 URL：
+也可以调用 `GET /memes/preview/urls/`，一次返回所有可用表情的预览 URL 和完整元数据，首页列表无需再逐个请求 `/memes/{key}/info`：
 
 ```json
 [
   {
     "url": "https://cdn.example.com/meme-generator/preview/petpet/xxx.gif",
-    "meme_key": "petpet"
+    "meme_key": "petpet",
+    "info": {
+      "key": "petpet",
+      "params_type": {
+        "min_images": 1,
+        "max_images": 1,
+        "min_texts": 0,
+        "max_texts": 1,
+        "default_texts": [],
+        "args_type": null
+      },
+      "keywords": ["petpet"],
+      "shortcuts": [],
+      "tags": [],
+      "date_created": "2024-01-01T00:00:00",
+      "date_modified": "2024-01-01T00:00:00"
+    }
   },
   {
     "url": "https://cdn.example.com/meme-generator/preview/capoo/xxx.gif",
-    "meme_key": "capoo"
+    "meme_key": "capoo",
+    "info": {
+      "key": "capoo"
+    }
   }
 ]
 ```

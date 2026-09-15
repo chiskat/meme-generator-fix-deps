@@ -53,11 +53,6 @@ class MemeUrlResponse(BaseModel):
     object_key: str
 
 
-class MemePreviewUrlResponse(BaseModel):
-    url: str
-    meme_key: str
-
-
 class MemeInfoResponse(BaseModel):
     key: str
     params_type: MemeParamsResponse
@@ -66,6 +61,12 @@ class MemeInfoResponse(BaseModel):
     tags: set[str]
     date_created: datetime
     date_modified: datetime
+
+
+class MemePreviewUrlResponse(BaseModel):
+    url: str
+    meme_key: str
+    info: MemeInfoResponse
 
 
 async def generate_meme(
@@ -79,6 +80,36 @@ async def generate_meme(
     content = result.getvalue()
     media_type = str(filetype.guess_mime(content)) or "text/plain"
     return content, media_type
+
+
+def build_meme_info_response(meme: Meme) -> MemeInfoResponse:
+    args_type_response: Optional[MemeArgsResponse] = None
+    if args_type := meme.params_type.args_type:
+        args_model = args_type.args_model
+        args_type_response = MemeArgsResponse(
+            args_model=model_json_schema(args_model),
+            args_examples=[
+                model_dump(example) for example in args_type.args_examples
+            ],
+            parser_options=args_type.parser_options,
+        )
+
+    return MemeInfoResponse(
+        key=meme.key,
+        params_type=MemeParamsResponse(
+            min_images=meme.params_type.min_images,
+            max_images=meme.params_type.max_images,
+            min_texts=meme.params_type.min_texts,
+            max_texts=meme.params_type.max_texts,
+            default_texts=meme.params_type.default_texts,
+            args_type=args_type_response,
+        ),
+        keywords=meme.keywords,
+        shortcuts=meme.shortcuts,
+        tags=meme.tags,
+        date_created=meme.date_created,
+        date_modified=meme.date_modified,
+    )
 
 
 async def generate_and_upload_preview(meme: Meme) -> str:
@@ -174,7 +205,7 @@ def register_router(meme: Meme):
         )
 
     @app.get(f"/memes/{meme.key}/preview/url/")
-    async def _():
+    async def _() -> MemePreviewUrlResponse:
         redis_config = meme_config.storage.redis
         if not redis_config.enabled:
             error = RedisCacheError(
@@ -192,7 +223,11 @@ def register_router(meme: Meme):
                 redis_client, redis_config, meme.key
             )
             if cached_url:
-                return MemePreviewUrlResponse(url=cached_url, meme_key=meme.key)
+                return MemePreviewUrlResponse(
+                    url=cached_url,
+                    meme_key=meme.key,
+                    info=build_meme_info_response(meme),
+                )
 
             url = await generate_and_upload_preview(meme)
 
@@ -202,7 +237,11 @@ def register_router(meme: Meme):
                 error = RedisCacheError(f"Redis 缓存写入失败：{e}")
                 raise HTTPException(status_code=error.status_code, detail=error.message)
 
-            return MemePreviewUrlResponse(url=url, meme_key=meme.key)
+            return MemePreviewUrlResponse(
+                url=url,
+                meme_key=meme.key,
+                info=build_meme_info_response(meme),
+            )
         except RedisError as e:
             error = RedisCacheError(f"Redis 缓存读取失败：{e}")
             raise HTTPException(status_code=error.status_code, detail=error.message)
@@ -260,7 +299,7 @@ def register_routers():
         return get_meme_keys()
 
     @app.get("/memes/preview/urls/")
-    async def _():
+    async def _() -> list[MemePreviewUrlResponse]:
         redis_config = meme_config.storage.redis
         if not redis_config.enabled:
             error = RedisCacheError(
@@ -313,7 +352,13 @@ def register_routers():
                             status_code=error.status_code, detail=error.message
                         )
 
-                responses.append(MemePreviewUrlResponse(url=url, meme_key=meme.key))
+                responses.append(
+                    MemePreviewUrlResponse(
+                        url=url,
+                        meme_key=meme.key,
+                        info=build_meme_info_response(meme),
+                    )
+                )
 
             return responses
         except RedisError as e:
@@ -329,33 +374,7 @@ def register_routers():
         except NoSuchMeme as e:
             raise HTTPException(status_code=e.status_code, detail=e.message)
 
-        args_type_response = None
-        if args_type := meme.params_type.args_type:
-            args_model = args_type.args_model
-            args_type_response = MemeArgsResponse(
-                args_model=model_json_schema(args_model),
-                args_examples=[
-                    model_dump(example) for example in args_type.args_examples
-                ],
-                parser_options=args_type.parser_options,
-            )
-
-        return MemeInfoResponse(
-            key=meme.key,
-            params_type=MemeParamsResponse(
-                min_images=meme.params_type.min_images,
-                max_images=meme.params_type.max_images,
-                min_texts=meme.params_type.min_texts,
-                max_texts=meme.params_type.max_texts,
-                default_texts=meme.params_type.default_texts,
-                args_type=args_type_response,
-            ),
-            keywords=meme.keywords,
-            shortcuts=meme.shortcuts,
-            tags=meme.tags,
-            date_created=meme.date_created,
-            date_modified=meme.date_modified,
-        )
+        return build_meme_info_response(meme)
 
     @app.get("/memes/{key}/preview")
     async def _(key: str):
